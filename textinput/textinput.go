@@ -189,11 +189,11 @@ var NewModel = New
 
 // SetValue sets the value of the text input.
 // Returns an error if validation fails.
-func (m *Model) SetValue(s string) error {
+func (m *Model) SetValue(s string) {
 	if m.Validate != nil {
 		if err := m.Validate(s); err != nil {
 			m.Err = err
-			return err
+			return
 		}
 	}
 
@@ -209,8 +209,6 @@ func (m *Model) SetValue(s string) error {
 		m.setCursor(len(m.value))
 	}
 	m.handleOverflow()
-
-	return nil
 }
 
 // Value returns the value of the text input.
@@ -362,9 +360,9 @@ func (m *Model) handlePaste(v string) bool {
 
 	// Put it all back together
 	value := append(head, tail...)
-	err := m.SetValue(string(value))
+	m.SetValue(string(value))
 
-	if err != nil {
+	if m.Err != nil {
 		m.pos = oldPos
 	}
 
@@ -681,8 +679,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				value := make([]rune, len(m.value))
 				copy(value, m.value)
 				value = append(value[:m.pos], append(runes, value[m.pos:]...)...)
-				err := m.SetValue(string(value))
-				if err == nil {
+				m.SetValue(string(value))
+				if m.Err == nil {
 					resetBlink = m.setCursor(m.pos + len(runes))
 				}
 			}
