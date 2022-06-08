@@ -191,8 +191,7 @@ var NewModel = New
 // Returns an error if validation fails.
 func (m *Model) SetValue(s string) error {
 	if m.Validate != nil {
-		err := m.Validate(s)
-		if err != nil {
+		if err := m.Validate(s); err != nil {
 			m.Err = err
 			return err
 		}
@@ -342,8 +341,8 @@ func (m *Model) handlePaste(v string) bool {
 	}
 
 	// Stuff before and after the cursor
-	head := append([]rune{}, m.value[:m.pos]...)
-	tailSrc := append([]rune{}, m.value[m.pos:]...)
+	head := m.value[:m.pos]
+	tailSrc := m.value[m.pos:]
 	tail := make([]rune, len(tailSrc))
 	copy(tail, tailSrc)
 
