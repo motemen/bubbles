@@ -2,7 +2,6 @@ package textinput
 
 import (
 	"context"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -92,31 +91,8 @@ func (c CursorMode) String() string {
 	}[c]
 }
 
-// ValidateBool validates boolean-like inputs only
-// i.e 'y', 'n', 't', 'f', '1', '0' (case insensitive).
-func ValidateBool(s string, m Model) error {
-	_, parseErr := strconv.ParseBool(string(s))
-
-	if parseErr == nil || s == "y" || s == "Y" || s == "n" || s == "N" {
-		return nil
-	} else {
-		return parseErr
-	}
-}
-
-// ValidateInt validates integer-only inputs.
-func ValidateInt(s string, m Model) error {
-	_, parseErr := strconv.ParseInt(s, 10, 64)
-
-	return parseErr
-}
-
-// ValidateFloat validates float-only inputs.
-func ValidateFloat(s string, m Model) error {
-	_, parseErr := strconv.ParseFloat(s, 64)
-
-	return parseErr
-}
+// ValidateFunc is a function that returns an error if the input is invalid.
+type ValidateFunc func(string) error
 
 // Model is the Bubble Tea model for this text input element.
 type Model struct {
@@ -178,15 +154,13 @@ type Model struct {
 	// cursorMode determines the behavior of the cursor
 	cursorMode CursorMode
 
-	// Validate takes a string to be evaluated.
-	// If any character of the string is invalid, it's expected to return an error
-	// which is stored in m.Err.
-	//
-	// If no Validate function is provided, no validation is done.
-	Validate func(string, Model) error
+	// Validate is a function that returns an error if the input is invalid.
+	// If the error returned is nil, the input is considered valid.
+	// If the function is not defned, all input is considered valid.
+	Validate ValidateFunc
 }
 
-// NewModel creates a new model with default settings.
+// New creates a new model with default settings.
 func New() Model {
 	return Model{
 		Prompt:           "> ",
@@ -217,12 +191,14 @@ var NewModel = New
 // Returns an error if validation fails.
 func (m *Model) SetValue(s string) error {
 	if m.Validate != nil {
-		err := m.Validate(s, *m)
+		err := m.Validate(s)
 		if err != nil {
 			m.Err = err
 			return err
 		}
 	}
+
+	m.Err = nil
 
 	runes := []rune(s)
 	if m.CharLimit > 0 && len(runes) > m.CharLimit {
@@ -295,7 +271,7 @@ func (m Model) CursorMode() CursorMode {
 	return m.cursorMode
 }
 
-// CursorMode sets the model's cursor mode. This method returns a command.
+// SetCursorMode sets the model's cursor mode. This method returns a command.
 //
 // For available cursor modes, see type CursorMode.
 func (m *Model) SetCursorMode(mode CursorMode) tea.Cmd {
@@ -639,6 +615,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyBackspace: // delete character before cursor
+			m.Err = nil
+
 			if msg.Alt {
 				resetBlink = m.deleteWordLeft()
 			} else {
